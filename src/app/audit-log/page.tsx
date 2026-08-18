@@ -1,0 +1,9 @@
+import { listAuditLogs } from "@/lib/audit";
+
+const actions: Record<string, string> = { CREATE: "ایجاد", UPDATE: "ویرایش", DELETE: "حذف", LOGIN: "ورود", LOGOUT: "خروج", SYNC: "همگام‌سازی", UPLOAD: "بارگذاری", DOWNLOAD: "دانلود", APPROVE: "تأیید", REJECT: "رد" };
+const entities: Record<string, string> = { User: "کاربر", Asset: "تجهیز", WorkOrder: "کار", WorkReport: "گزارش کار", Calibration: "کالیبراسیون", ChatGroup: "گروه چت", ChatMessage: "پیام", File: "فایل" };
+
+export default async function AuditLogPage() {
+  const logs = await listAuditLogs();
+  return <main style={{ padding: 32 }} dir="rtl"><div className="eyebrow">امنیت و نظارت</div><h1>گزارش رویدادها</h1><p className="muted">تمام رویدادهای ثبت‌شده در سامانه، مستقیماً از PostgreSQL.</p><div className="card" style={{ marginTop: 20, overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr>{["زمان", "کاربر", "عملیات", "موجودیت", "شناسه", "IP", "جزئیات"].map((h) => <th key={h} style={{ textAlign: "right", padding: 12 }}>{h}</th>)}</tr></thead><tbody>{logs.map((log) => <tr key={log.id} style={{ borderTop: "1px solid var(--border)" }}><td style={{ padding: 12, whiteSpace: "nowrap" }}>{new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(log.createdAt)}</td><td style={{ padding: 12 }}>{log.user?.displayName || log.user?.username || "سیستم"}</td><td style={{ padding: 12 }}><span className="badge">{actions[log.action] || log.action}</span></td><td style={{ padding: 12 }}>{entities[log.entityType] || log.entityType}</td><td style={{ padding: 12 }} dir="ltr">{log.entityId || "—"}</td><td style={{ padding: 12 }} dir="ltr">{log.ipAddress || "—"}</td><td style={{ padding: 12, maxWidth: 360, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{log.metadata ? JSON.stringify(log.metadata) : "—"}</td></tr>)}</tbody></table>{logs.length === 0 && <p className="muted">هنوز رویدادی ثبت نشده است.</p>}</div></main>;
+}
