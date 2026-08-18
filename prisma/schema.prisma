@@ -8,8 +8,13 @@ enum CalibrationResult { PASSED FAILED CONDITIONAL }
 enum WorkOrderStatus { OPEN IN_PROGRESS WAITING_APPROVAL COMPLETED CANCELLED }
 enum WorkPriority { LOW NORMAL HIGH URGENT }
 enum ChatMemberRole { OWNER ADMIN MEMBER }
+enum UserSource { LOCAL ACTIVE_DIRECTORY }
 
-model User { id String @id @default(cuid()); username String @unique; displayName String; email String? @unique; status UserStatus @default(ACTIVE); departmentId String?; department Department? @relation(fields:[departmentId], references:[id]); roles UserRole[]; workReports WorkReport[]; auditLogs AuditLog[]; assignedAssets Asset[] @relation("AssetCustodian"); calibrations Calibration[]; assignedWorkOrders WorkOrder[] @relation("WorkAssignee"); createdWorkOrders WorkOrder[] @relation("WorkCreator"); chatMemberships ChatMember[]; chatMessages ChatMessage[]; createdChatGroups ChatGroup[] @relation("ChatGroupCreator"); createdAt DateTime @default(now()); updatedAt DateTime @updatedAt }
+model User {
+ id String @id @default(cuid()); username String @unique; displayName String; email String? @unique; status UserStatus @default(ACTIVE); source UserSource @default(LOCAL); adObjectGuid String? @unique; distinguishedName String?; departmentId String?; lastAdSyncAt DateTime?;
+ department Department? @relation(fields:[departmentId], references:[id]); roles UserRole[]; workReports WorkReport[]; auditLogs AuditLog[]; assignedAssets Asset[] @relation("AssetCustodian"); calibrations Calibration[]; assignedWorkOrders WorkOrder[] @relation("WorkAssignee"); createdWorkOrders WorkOrder[] @relation("WorkCreator"); chatMemberships ChatMember[]; chatMessages ChatMessage[]; createdChatGroups ChatGroup[] @relation("ChatGroupCreator"); createdAt DateTime @default(now()); updatedAt DateTime @updatedAt;
+ @@index([source]); @@index([lastAdSyncAt])
+}
 model Department { id String @id @default(cuid()); name String @unique; description String?; users User[]; assets Asset[]; workOrders WorkOrder[]; createdAt DateTime @default(now()); updatedAt DateTime @updatedAt }
 model Role { id String @id @default(cuid()); name RoleName @unique; description String?; users UserRole[]; permissions RolePermission[] }
 model Permission { id String @id @default(cuid()); key String @unique; description String?; roles RolePermission[] }
