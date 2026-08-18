@@ -1,50 +1,17 @@
 import "server-only";
-
+import ldap from "ldapjs";
 import { prisma } from "./prisma";
+import { syncDirectoryGroups } from "./ad-group-sync";
 
-export type DirectoryUser = {
-  username: string;
-  displayName: string;
-  email?: string | null;
-  enabled: boolean;
-  department?: string | null;
-};
+export type DirectoryUser = { username: string; displayName: string; email?: string | null; department?: string | null; distinguishedName: string; adObjectGuid: string };
+export type DirectoryGroup = { name: string; description?: string | null; members: string[] };
 
-/**
- * Upserts directory identities into the application database.
- * This function deliberately does not write to Active Directory.
- */
-export async function syncDirectoryUsers(users: DirectoryUser[]) {
-  let synced = 0;
+function required(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing ${name}`); return value; }
+function guidFromBuffer(value: unknown) { if (!Buffer.isBuffer(value) || value.length !== 16) return String(value ?? ""); const b=value; const h=(n:number)=>n.toString(16).padStart(2,"0"); return `${[b[3],b[2],b[1],b[0]].map(h).join("")}-${[b[5],b[4]].map(h).join("")}-${[b[7],b[6]].map(h).join("")}-${[b[8],b[9]].map(h).join("")}-${Array.from(b.subarray(10)).map(h).join("")}`; }
+function values(entry:any,key:string): unknown[] { const a=entry.pojo?.attributes?.find((x:any)=>x.type?.toLowerCase()===key.toLowerCase())?.values; if(Array.isArray(a)) return a; const d=entry[key]; return Array.isArray(d)?d:d==null?[]:[d]; }
+function first(entry:any,key:string){ return values(entry,key)[0]; }
+async function search(client:ldap.Client,base:string,options:ldap.SearchOptions):Promise<any[]> { return new Promise((resolve,reject)=>{ client.search(base,options,(error,result)=>{ if(error) return reject(error); const rows:any[]=[]; result.on("searchEntry",(e:any)=>rows.push(e)); result.on("error",reject); result.on("end",(s:any)=>s?.status===0?resolve(rows):reject(new Error(`LDAP search failed: ${s?.status}`))); }); }); }
+async function connect(){ const client=ldap.createClient({url:required("AD_LDAP_URL"),timeout:10000,connectTimeout:10000,tlsOptions:{rejectUnauthorized:process.env.AD_LDAP_REJECT_UNAUTHORIZED!=="false"}}); await new Promise<void>((resolve,reject)=>client.bind(required("AD_BIND_DN"),required("AD_BIND_PASSWORD"),(e)=>e?reject(e):resolve())); return client; }
+async function readDirectory(client:ldap.Client){ const base=required("AD_BASE_DN"); const ue=await search(client,base,{scope:"sub",filter:"(&(objectCategory=person)(objectClass=user)(sAMAccountName=*))",attributes:["sAMAccountName","displayName","mail","department","distinguishedName","objectGUID"]}); const users:DirectoryUser[]=ue.map((e)=>({username:String(first(e,"sAMAccountName")??"").toLowerCase(),displayName:String(first(e,"displayName")??first(e,"sAMAccountName")??""),email:first(e,"mail")?String(first(e,"mail")):null,department:first(e,"department")?String(first(e,"department")):null,distinguishedName:String(first(e,"distinguishedName")??e.dn??""),adObjectGuid:guidFromBuffer(first(e,"objectGUID"))})).filter(u=>u.username&&u.distinguishedName&&u.adObjectGuid); const ge=await search(client,base,{scope:"sub",filter:"(&(objectCategory=group)(cn=*))",attributes:["cn","description","member"]}); const groups:DirectoryGroup[]=ge.map((e)=>({name:String(first(e,"cn")??""),description:first(e,"description")?String(first(e,"description")):null,members:values(e,"member").map(String)})).filter(g=>g.name); return {users,groups}; }
 
-  for (const directoryUser of users) {
-    const department = directoryUser.department
-      ? await prisma.department.upsert({
-          where: { name: directoryUser.department },
-          update: {},
-          create: { name: directoryUser.department },
-        })
-      : null;
-
-    await prisma.user.upsert({
-      where: { username: directoryUser.username },
-      update: {
-        displayName: directoryUser.displayName,
-        email: directoryUser.email ?? null,
-        status: directoryUser.enabled ? "ACTIVE" : "INACTIVE",
-        departmentId: department?.id ?? null,
-      },
-      create: {
-        username: directoryUser.username,
-        displayName: directoryUser.displayName,
-        email: directoryUser.email ?? null,
-        status: directoryUser.enabled ? "ACTIVE" : "INACTIVE",
-        departmentId: department?.id ?? null,
-      },
-    });
-
-    synced += 1;
-  }
-
-  return { synced };
-}
+export async function syncActiveDirectory(){ const startedAt=new Date(); const client=await connect(); try { const {users,groups}=await readDirectory(client); if(!users.length) throw new Error("AD returned zero users; sync aborted to protect existing accounts"); const deptCache=new Map<string,string>(); for(const u of users){ let departmentId:string|undefined; const name=u.department?.trim(); if(name){ departmentId=deptCache.get(name); if(!departmentId){ const d=await prisma.department.upsert({where:{name},update:{},create:{name}}); departmentId=d.id; deptCache.set(name,d.id); } } await prisma.user.upsert({where:{adObjectGuid:u.adObjectGuid},update:{username:u.username,displayName:u.displayName,email:u.email,source:"ACTIVE_DIRECTORY",distinguishedName:u.distinguishedName,departmentId,status:"ACTIVE",lastAdSyncAt:startedAt},create:{username:u.username,displayName:u.displayName,email:u.email,source:"ACTIVE_DIRECTORY",adObjectGuid:u.adObjectGuid,distinguishedName:u.distinguishedName,departmentId,status:"ACTIVE",lastAdSyncAt:startedAt}}); } const activeGuids=users.map(u=>u.adObjectGuid); await prisma.user.updateMany({where:{source:"ACTIVE_DIRECTORY",adObjectGuid:{notIn:activeGuids},status:"ACTIVE"},data:{status:"INACTIVE",lastAdSyncAt:startedAt}}); const byDn=new Map(users.map(u=>[u.distinguishedName.toLowerCase(),u.username])); const normalized=groups.map(g=>({...g,members:g.members.map(d=>byDn.get(d.toLowerCase())).filter((x):x is string=>Boolean(x))})); const groupResult=await syncDirectoryGroups(normalized); return {users:users.length,groups:groupResult.synced,startedAt}; } finally { client.unbind(); } }
