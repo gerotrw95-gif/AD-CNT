@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus { ACTIVE INACTIVE SUSPENDED }
+enum RoleName { SUPER_ADMIN ADMIN IT CALIBRATION_MANAGER CALIBRATION_TECHNICIAN HR EMPLOYEE VIEWER }
+en
+enum AssetStatus { ACTIVE IN_CALIBRATION OUT_OF_SERVICE RETIRED }
+enum CalibrationResult { PASSED FAILED CONDITIONAL }
+
+model User {
+  id String @id @default(cuid())
+  username String @unique
+  displayName String
+  email String? @unique
+  status UserStatus @default(ACTIVE)
+  departmentId String?
+  department Department? @relation(fields: [departmentId], references: [id])
+  roles UserRole[]
+  workReports WorkReport[]
+  auditLogs AuditLog[]
+  assignedAssets Asset[] @relation("AssetCustodian")
+  calibrations Calibration[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Department {
+  id String @id @default(cuid())
+  name String @unique
+  description String?
+  users User[]
+  assets Asset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Role { id String @id @default(cuid()); name RoleName @unique; description String?; users UserRole[]; permissions RolePermission[] }
+model Permission { id String @id @default(cuid()); key String @unique; description String?; roles RolePermission[] }
+model UserRole { userId String; roleId String; user User @relation(fields:[userId], references:[id], onDelete: Cascade); role Role @relation(fields:[roleId], references:[id], onDelete: Cascade); @@id([userId, roleId]) }
+model RolePermission { roleId String; permissionId String; role Role @relation(fields:[roleId], references:[id], onDelete: Cascade); permission Permission @relation(fields:[permissionId], references:[id], onDelete: Cascade); @@id([roleId, permissionId]) }
+
+model Asset {
+  id String @id @default(cuid())
+  assetCode String @unique
+  name String
+  manufacturer String?
+  model String?
+  serialNumber String?
+  description String?
+  status AssetStatus @default(ACTIVE)
+  location String?
+  departmentId String?
+  department Department? @relation(fields:[departmentId], references:[id])
+  custodianId String?
+  custodian User? @relation("AssetCustodian", fields:[custodianId], references:[id], onDelete:SetNull)
+  calibrationIntervalDays Int?
+  nextCalibrationAt DateTime?
+  calibrations Calibration[]
+  attachments AssetAttachment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status])
+  @@index([nextCalibrationAt])
+}
+
+model Calibration {
+  id String @id @default(cuid())
+  assetId String
+  asset Asset @relation(fields:[assetId], references:[id], onDelete:Cascade)
+  technicianId String?
+  technician User? @relation(fields:[technicianId], references:[id], onDelete:SetNull)
+  performedAt DateTime
+  dueAt DateTime?
+  result CalibrationResult
+  certificateNumber String?
+  notes String?
+  createdAt DateTime @default(now())
+  @@index([assetId, performedAt])
+}
+
+model AssetAttachment {
+  id String @id @default(cuid())
+  assetId String
+  asset Asset @relation(fields:[assetId], references:[id], onDelete:Cascade)
+  fileName String
+  storageKey String @unique
+  contentType String?
+  sizeBytes Int?
+  createdAt DateTime @default(now())
+}
+
+model WorkReport { id String @id @default(cuid()); userId String; user User @relation(fields:[userId], references:[id]); title String; description String?; workDate DateTime; minutes Int?; createdAt DateTime @default(now()); updatedAt DateTime @updatedAt }
+model AuditLog { id String @id @default(cuid()); userId String?; user User? @relation(fields:[userId], references:[id], onDelete:SetNull); action String; entityType String; entityId String?; metadata Json?; ipAddress String?; createdAt DateTime @default(now()); @@index([entityType, entityId]); @@index([createdAt]) }
