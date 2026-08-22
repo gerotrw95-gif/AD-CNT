@@ -1,58 +1,8 @@
-const stats = [
-  ["کارکنان فعال", "—", "اتصال به AD در مرحله بعد"],
-  ["تجهیزات", "—", "ماژول مدیریت منابع"],
-  ["کارهای باز", "—", "ماژول عملیات"],
-  ["گزارش‌های امروز", "—", "ماژول گزارش کار"],
-];
-
-const navigation = ["داشبورد", "کارکنان", "واحدها", "منابع و تجهیزات", "کالیبراسیون", "کارها", "گزارش کار", "چت سازمانی", "گزارش‌ها", "تنظیمات"];
-
-export default function Home() {
-  return (
-    <main className="dashboard-shell">
-      <aside className="sidebar">
-        <div className="brand">AD<span>-CNT</span></div>
-        <nav className="nav" aria-label="ناوبری اصلی">
-          {navigation.map((item, index) => <a className={`nav-item ${index === 0 ? "active" : ""}`} href="#" key={item}>{item}</a>)}
-        </nav>
-      </aside>
-
-      <section className="main">
-        <header className="header">
-          <div>
-            <div className="eyebrow">سامانه مدیریت سازمان</div>
-            <h1>داشبورد مدیریت</h1>
-            <div className="muted">مرکز کنترل منابع، نیروی انسانی و عملیات شرکت</div>
-          </div>
-          <div className="user-pill">مدیر سیستم</div>
-        </header>
-
-        <section className="grid">
-          {stats.map(([label, value, hint]) => (
-            <article className="card" key={label}>
-              <div className="metric-label">{label}</div>
-              <div className="metric-value">{value}</div>
-              <div className="muted">{hint}</div>
-            </article>
-          ))}
-        </section>
-
-        <section className="content-grid">
-          <article className="card">
-            <div className="section-title">وضعیت سامانه</div>
-            <div className="list">
-              <div className="list-row"><span>پایگاه داده</span><span className="badge">در حال آماده‌سازی</span></div>
-              <div className="list-row"><span>Active Directory</span><span className="badge">Connector در مرحله بعد</span></div>
-              <div className="list-row"><span>احراز هویت و RBAC</span><span className="badge">اسکلت اولیه</span></div>
-              <div className="list-row"><span>مدیریت فایل</span><span className="badge">برنامه‌ریزی شده</span></div>
-            </div>
-          </article>
-          <article className="card">
-            <div className="section-title">شروع کار</div>
-            <p className="muted">این نسخه، اسکلت اولیه AD-CNT است. در مراحل بعدی دیتابیس، نقش‌ها و دسترسی‌ها، کاربران Active Directory، منابع، گزارش کار و چت سازمانی به آن اضافه می‌شوند.</p>
-          </article>
-        </section>
-      </section>
-    </main>
-  );
-}
+"use client";
+import { useState } from "react";
+const nav=[['داشبورد','dashboard'],['کارکنان','employees'],['واحدها','departments'],['منابع و تجهیزات','assets'],['کالیبراسیون','calibration'],['کارها','work'],['گزارش کار','reports'],['فایل‌ها','files'],['چت سازمانی','chat'],['Active Directory','ad'],['Audit Log','audit'],['تنظیمات','settings']];
+const employees=[['امیرحسین روزبه','مدیر IT','فناوری اطلاعات','فعال'],['مهدی احمدی','کارشناس کالیبراسیون','کالیبراسیون','فعال'],['سارا کریمی','کارشناس منابع انسانی','منابع انسانی','فعال'],['رضا موسوی','تکنسین ابزار دقیق','کالیبراسیون','غیرفعال']];
+const assets=[['CAL-0012','کالیبراتور فشار Fluke','در حال استفاده','1405/06/14'],['INS-0041','مولتی‌متر دقیق Keysight','در کالیبراسیون','1405/06/22'],['TOR-0008','گشتاورسنج دیجیتال','فعال','1405/07/03']];
+const logs=[['14:32:10','امیرحسین روزبه','AD SYNC','موفق'],['14:28:04','سارا کریمی','CREATE REPORT','موفق'],['13:51:22','مهدی احمدی','UPDATE CALIBRATION','موفق'],['12:16:41','مدیر سیستم','ROLE UPDATE','موفق']];
+export default function Home(){const [active,setActive]=useState('dashboard');const [sync,setSync]=useState(false);const [chat,setChat]=useState('');const title=nav.find(x=>x[1]===active)?.[0]||'داشبورد';const syncNow=()=>{setSync(true);setTimeout(()=>setSync(false),1800)};return <main className="demo" dir="rtl"><aside className="demo-sidebar"><div className="brand">AD<span>-CNT</span></div><div className="demo-caption">سامانه مدیریت سازمان</div><nav>{nav.map(([label,id])=><button key={id} onClick={()=>setActive(id)} className={active===id?'selected':''}>{label}</button>)}</nav><div className="sidebar-foot"><span className="online-dot"/> سیستم Demo فعال است</div></aside><section className="demo-main"><header className="demo-header"><div><div className="eyebrow">AD-CNT / DEMO</div><h1>{title}</h1><p>مرکز کنترل منابع، نیروی انسانی و عملیات شرکت</p></div><div className="user-box"><div className="avatar">ا</div><div><b>مدیر سیستم</b><small>SUPER ADMIN</small></div></div></header>{active==='dashboard'&&<><section className="demo-grid">{[['کارکنان فعال','۱۲۸','همگام‌شده با Active Directory'],['تجهیزات','۳۴۲','۲ مورد خارج از سرویس'],['کارهای باز','۲۷','۴ کار فوری'],['کالیبراسیون','۱۸','۳ مورد نزدیک به سررسید']].map(x=><article className="demo-card metric" key={x[0]}><span>{x[0]}</span><strong>{x[1]}</strong><small>{x[2]}</small></article>)}</section><section className="two-col"><article className="demo-card"><h2>وضعیت Active Directory</h2><div className="status-line"><span className="status good">● متصل</span><span>آخرین Sync: امروز، ۱۴:۳۲</span></div><div className="mini-stats"><b>۱۲۸ <small>کاربر</small></b><b>۱۴ <small>گروه</small></b><b>۰ <small>خطا</small></b></div><button className="primary" onClick={syncNow}>{sync?'در حال Sync...':'Sync Now'}</button></article><article className="demo-card"><h2>اولویت‌های امروز</h2><div className="task"><b>کالیبراسیون CAL-0012</b><span>فوری</span></div><div className="task"><b>گزارش کار واحد کالیبراسیون</b><span>امروز</span></div><div className="task"><b>بررسی ۲ درخواست تجهیزات</b><span>در انتظار</span></div></article></section></>}{active==='employees'&&<Table title="کارکنان سازمان" heads={['نام','سمت','واحد','وضعیت']} rows={employees}/>} {active==='assets'&&<Table title="منابع و تجهیزات" heads={['کد تجهیز','نام تجهیز','وضعیت','کالیبراسیون بعدی']} rows={assets}/>} {active==='audit'&&<Table title="Audit Log" heads={['زمان','کاربر','عملیات','نتیجه']} rows={logs}/>} {active==='ad'&&<section className="demo-card"><div className="section-head"><div><h2>Active Directory Sync</h2><p>مدیریت اتصال و همگام‌سازی کاربران و گروه‌های Domain</p></div><span className="status good">● متصل</span></div><div className="demo-grid compact">{[['کاربران','۱۲۸'],['گروه‌ها','۱۴'],['اضافه‌شده','۳'],['غیرفعال‌شده','۱'],['خطاها','۰'],['مدت اجرا','۲.۴۳ ثانیه']].map(x=><article className="demo-card metric" key={x[0]}><span>{x[0]}</span><strong>{x[1]}</strong></article>)}</div><button className="primary" onClick={syncNow}>{sync?'در حال همگام‌سازی...':'اجرای Sync Now'}</button><h3>آخرین اجراها</h3><Table title="" heads={['تاریخ','وضعیت','کاربران','گروه‌ها','مدت']} rows={[["امروز ۱۴:۳۲",'SUCCESS','۱۲۸','۱۴','۲.۴۳s'],['امروز ۰۹:۰۱','SUCCESS','۱۲۷','۱۴','۱.۹۱s'],['دیروز ۱۸:۰۵','COMPLETED_WITH_ERRORS','۱۲۷','۱۴','۸.۲۱s']]}/></section>}{active==='chat'&&<section className="chat-demo"><div className="groups"><h3>گروه‌های سازمانی</h3>{['IT و زیرساخت','کالیبراسیون','مدیریت','منابع انسانی'].map((x,i)=><button className={i===0?'chat-selected':''} key={x}># {x}<small>{[12,18,6,9][i]} عضو</small></button>)}</div><div className="chat-window"><div className="chat-title"><b># IT و زیرساخت</b><small>۱۲ عضو آنلاین</small></div><div className="messages"><div><b>مهدی</b><p>گزارش کالیبراسیون تجهیزات آماده شد.</p><small>۱۴:۲۸</small></div><div className="mine"><b>شما</b><p>عالیه، در گزارش نهایی قرارش می‌دهم.</p><small>۱۴:۳۰</small></div></div><form onSubmit={e=>{e.preventDefault();setChat('')}}><input value={chat} onChange={e=>setChat(e.target.value)} placeholder="پیام خود را بنویسید..."/><button>ارسال</button></form></div></section>}{!['dashboard','employees','assets','audit','ad','chat'].includes(active)&&<section className="demo-card placeholder"><div className="placeholder-icon">◆</div><h2>{title}</h2><p>این بخش در نسخه Demo در حال تکمیل است و در نسخه عملیاتی به PostgreSQL، RBAC و سرویس‌های واقعی AD-CNT متصل خواهد شد.</p><span>DEMO PREVIEW</span></section>}</section></main>}
+function Table({title,heads,rows}:{title:string,heads:string[],rows:string[][]}){return <article className="demo-card table-card">{title&&<h2>{title}</h2>}<div className="table-wrap"><table><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((c,j)=><td key={j}>{j===r.length-1&&(c==='فعال'||c==='موفق'||c==='SUCCESS')?<span className="status good">● {c}</span>:c}</td>)}</tr>)}</tbody></table></div></article>}
